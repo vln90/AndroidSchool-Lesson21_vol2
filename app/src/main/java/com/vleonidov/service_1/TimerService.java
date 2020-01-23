@@ -6,6 +6,7 @@ import android.app.NotificationManager;
 import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Intent;
+import android.os.Binder;
 import android.os.Build;
 import android.os.CountDownTimer;
 import android.os.IBinder;
@@ -32,6 +33,10 @@ public class TimerService extends Service {
     public static final String ACTION_CLOSE = "TIMER_SERVICE_ACTION_CLOSE";
 
     private CountDownTimer mCountDownTimer;
+
+    private LocalTimerServiceBinder mLocalTimerServiceBinder = new LocalTimerServiceBinder();
+
+    private MainActivity.OnTimerChangedListener mOnTimerChangedListener;
 
     @Override
     public void onCreate() {
@@ -69,7 +74,43 @@ public class TimerService extends Service {
     @Nullable
     @Override
     public IBinder onBind(Intent intent) {
-        return null;
+        Log.d(TAG, "onBind() called with: intent = [" + intent + "]");
+
+        return mLocalTimerServiceBinder;
+    }
+
+    @Override
+    public boolean onUnbind(Intent intent) {
+        Log.d(TAG, "onUnbind() called with: intent = [" + intent + "]");
+
+        return super.onUnbind(intent);
+    }
+
+    public void startCountdownTimer(long time, long period) {
+        mCountDownTimer = new CountDownTimer(time, period) {
+            @Override
+            public void onTick(long millisUntilFinished) {
+                Log.d(TAG, "onTick() called with: millisUntilFinished = [" + millsToSeconds(millisUntilFinished) + "]");
+                if (mOnTimerChangedListener != null) {
+                    mOnTimerChangedListener.onTimerChanged("Time = " + millsToSeconds(millisUntilFinished));
+                }
+                startForeground(NOTIFICATION_ID, createNotification(millsToSeconds(millisUntilFinished)));
+//                updateNotification(createNotification(millsToSeconds(millisUntilFinished)));
+            }
+
+            @Override
+            public void onFinish() {
+                Log.d(TAG, "onFinish() called");
+
+                stopSelf();
+            }
+        };
+
+        mCountDownTimer.start();
+    }
+
+    public void setOnTimerChangedListener(MainActivity.OnTimerChangedListener onTimerChangedListener) {
+        mOnTimerChangedListener = onTimerChangedListener;
     }
 
     private Notification createNotification(long currentTime) {
@@ -105,27 +146,6 @@ public class TimerService extends Service {
         }
     }
 
-    private void startCountdownTimer(long time, long period) {
-        mCountDownTimer = new CountDownTimer(time, period) {
-            @Override
-            public void onTick(long millisUntilFinished) {
-                Log.d(TAG, "onTick() called with: millisUntilFinished = [" + millsToSeconds(millisUntilFinished) + "]");
-
-//                startForeground(NOTIFICATION_ID, createNotification(millsToSeconds(millisUntilFinished)));
-                updateNotification(createNotification(millsToSeconds(millisUntilFinished)));
-            }
-
-            @Override
-            public void onFinish() {
-                Log.d(TAG, "onFinish() called");
-
-                stopSelf();
-            }
-        };
-
-        mCountDownTimer.start();
-    }
-
     private void updateNotification(@NonNull Notification notification) {
         NotificationManagerCompat notificationManager = NotificationManagerCompat.from(this);
 
@@ -141,5 +161,11 @@ public class TimerService extends Service {
 
     private long millsToSeconds(long time) {
         return time / 1000L;
+    }
+
+    public class LocalTimerServiceBinder extends Binder {
+        TimerService getTimerService() {
+            return TimerService.this;
+        }
     }
 }
