@@ -19,9 +19,6 @@
             </intent-filter>
         </activity>
 
-        <service
-            android:name=".TimerService"
-            android:process=":anotherProcess" />
     </application>
 
 </manifest>
