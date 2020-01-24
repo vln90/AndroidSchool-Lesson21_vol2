@@ -16,22 +16,13 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.vleonidov.lesson_23_another_process.ITimerServiceAIDL;
+
 public class MainActivity extends AppCompatActivity implements View.OnClickListener {
 
     private static final String TAG = "MainActivity";
 
-    public static final int MSG_START_TIMER = 1;
-    public static final int MSG_STOP_TIMER = 2;
-    public static final String BUNDLE_KEY_TIME = "BUNDLE_KEY_TIME";
-
-    public static final int MSG_TIMER_CALLED = 3;
-    public static final String BUNDLE_CURRENT_TIME = "BUNDLE_CURRENT_TIME";
-
     private TimerServiceConnection mTimerServiceConnection;
-
-    private Messenger mTimerServiceMessenger;
-
-    private Messenger mMainActivityMessenger = new Messenger(new MainActivityHandler());
 
     private TextView mTextView;
 
@@ -106,42 +97,12 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         unbindService(mTimerServiceConnection);
 
         stopListeningTimer();
-        mTimerServiceMessenger = null;
     }
 
     private void startTimer() {
-        if (mTimerServiceMessenger != null) {
-            Message message = Message.obtain(null, MSG_START_TIMER);
-
-            Bundle bundle = new Bundle();
-            bundle.putLong(BUNDLE_KEY_TIME, 30000L);
-            message.setData(bundle);
-            message.replyTo = mMainActivityMessenger;
-
-            try {
-                mTimerServiceMessenger.send(message);
-            } catch (RemoteException e) {
-                e.printStackTrace();
-            }
-        }
-//        if (mTimerService != null) {
-//            mTimerService.startCountdownTimer(10000L, 1000L);
-//        }
-    }
-
-    private void startListeningTimer() {
-//        mTimerService.setOnTimerChangedListener(new OnTimerChangedListener() {
-//            @Override
-//            public void onTimerChanged(String timer) {
-//                mTextView.setText(timer);
-//            }
-//        });
     }
 
     private void stopListeningTimer() {
-//        if (mTimerService != null) {
-//            mTimerService.setOnTimerChangedListener(null);
-//        }
     }
 
     private class TimerServiceConnection implements ServiceConnection {
@@ -150,34 +111,18 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
         public void onServiceConnected(ComponentName name, IBinder service) {
             Log.d(TAG, "onServiceConnected() called with: name = [" + name + "], service = [" + service + "]");
 
-//            mTimerService = ((TimerService.LocalTimerServiceBinder) service).getTimerService();
-            mTimerServiceMessenger = new Messenger(service);
-            startListeningTimer();
+            ITimerServiceAIDL timerServiceAIDL = ITimerServiceAIDL.Stub.asInterface(service);
+
+            try {
+                timerServiceAIDL.startTimer(50000, 1000);
+            } catch (RemoteException e) {
+                e.printStackTrace();
+            }
         }
 
         @Override
         public void onServiceDisconnected(ComponentName name) {
             Log.d(TAG, "onServiceDisconnected() called with: name = [" + name + "]");
-        }
-    }
-
-    public interface OnTimerChangedListener {
-        void onTimerChanged(String timer);
-    }
-
-    public class MainActivityHandler extends Handler {
-        @Override
-        public void handleMessage(@NonNull Message msg) {
-            super.handleMessage(msg);
-
-            switch (msg.what) {
-                case MSG_TIMER_CALLED:
-                    String time = msg.getData().getString(BUNDLE_CURRENT_TIME);
-
-                    mTextView.setText(time);
-
-                    break;
-            }
         }
     }
 }
